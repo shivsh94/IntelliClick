@@ -213,7 +213,10 @@ export default async function Page() {
 
   const headersList = await headers();
   const pathname = headersList.get("x-invoke-path") || "";
-  const cityName = decodeURIComponent(pathname.split("/").pop() || "london");
+  const cityName = decodeURIComponent(pathname.split("/").pop() || "");
+  if (!cityName) {
+    return <p className="text-center py-4 opacity-70">City not found</p>;
+  }
 
   const weather: WeatherResponse = await fetchWeather(cityName);
   const forecast: ForecastResponse = await fetchForecast(cityName);
