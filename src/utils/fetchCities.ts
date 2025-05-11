@@ -15,7 +15,7 @@ export const fetchCities = async (
 
   const data = await res.json();
 
-  return data.records.map((record: any) => ({
+  return data.records.map((record: { fields: { name: string; cou_name_en: string; timezone: string; coordinates?: [number, number] } }) => ({
     name: record.fields.name,
     country: record.fields.cou_name_en,
     timezone: record.fields.timezone,

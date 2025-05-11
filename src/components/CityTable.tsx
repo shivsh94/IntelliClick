@@ -14,7 +14,6 @@ const CityTable = observer(() => {
   const loaderRef = useRef<HTMLDivElement | null>(null);
   
   useEffect(() => {
-
     cityStore.fetchCities();
   
     const intersectionObserver = new IntersectionObserver((entries) => {
@@ -22,13 +21,16 @@ const CityTable = observer(() => {
         cityStore.fetchCities();
       }
     }, { threshold: 0.5 });
+  
+    // Store the current ref value in a variable
+    const currentLoaderRef = loaderRef.current;
     
-    if (loaderRef.current) {
-      intersectionObserver.observe(loaderRef.current);
+    if (currentLoaderRef) {
+      intersectionObserver.observe(currentLoaderRef);
     }
     
     return () => {
-      if (loaderRef.current) {
+      if (currentLoaderRef) {
         intersectionObserver.disconnect();
       }
     };

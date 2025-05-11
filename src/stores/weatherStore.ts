@@ -9,7 +9,7 @@ export const WeatherStore = types
     setCityName(name: string) {
       self.cityName = name;
     },
-    setWeatherData(data: any) {
+    setWeatherData(data: string) {
       self.weatherData = data;
     },
   }));
