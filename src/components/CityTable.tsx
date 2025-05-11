@@ -14,10 +14,9 @@ const CityTable = observer(() => {
   const loaderRef = useRef<HTMLDivElement | null>(null);
   
   useEffect(() => {
-    // Initial fetch
+
     cityStore.fetchCities();
-    
-    // Setup intersection observer for infinite scrolling
+  
     const intersectionObserver = new IntersectionObserver((entries) => {
       if (entries[0].isIntersecting && !cityStore.loading) {
         cityStore.fetchCities();
@@ -40,11 +39,11 @@ const CityTable = observer(() => {
   };
   
   return (
-    <div className="p-4 max-w-4xl mx-auto">
+    <div className="p-4 w-full max-w-7xl mx-auto">
       <div className="mb-6">
         <input
           type="text"
-          className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+          className="w-full p-3 sm:p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-base sm:text-sm"
           placeholder="Search city or country..."
           onChange={handleSearch}
         />
@@ -54,26 +53,26 @@ const CityTable = observer(() => {
         <table className="w-full table-auto border-collapse">
           <thead className="bg-gray-100">
             <tr>
-              <th className="py-3 px-4 text-left font-medium text-gray-700 border-b">City</th>
-              <th className="py-3 px-4 text-left font-medium text-gray-700 border-b">Country</th>
-              <th className="py-3 px-4 text-left font-medium text-gray-700 border-b">Timezone</th>
+              <th className="py-3 px-2 sm:px-4 text-left font-medium text-gray-700 border-b text-sm sm:text-base">City</th>
+              <th className="py-3 px-2 sm:px-4 text-left font-medium text-gray-700 border-b text-sm sm:text-base min-[330px]:table-cell">Country</th>
+              <th className="py-3 px-2 sm:px-4 text-left font-medium text-gray-700 border-b text-sm sm:text-base hidden md:table-cell">Timezone</th>
             </tr>
           </thead>
           <tbody>
             {cityStore.cities.map((city: City, idx: number) => (
               <tr key={idx} className="hover:bg-gray-50 border-b border-gray-200">
-                <td className="py-3 px-4 text-blue-600">
+                <td className="py-3 px-2 sm:px-4 text-blue-600 text-sm sm:text-base">
                   <Link href={`/weather/${city.name}`} className="hover:text-blue-800 hover:underline">
                     {city.name}
                   </Link>
                 </td>
-                <td className="py-3 px-4">{city.country}</td>
-                <td className="py-3 px-4">{city.timezone}</td>
+                <td className="py-3 px-2 sm:px-4 text-sm sm:text-base min-[330px]:table-cell">{city.country}</td>
+                <td className="py-3 px-2 sm:px-4 text-sm sm:text-base hidden md:table-cell">{city.timezone}</td>
               </tr>
             ))}
             {cityStore.cities.length === 0 && !cityStore.loading && (
               <tr>
-                <td colSpan={3} className="py-8 text-center text-gray-500">
+                <td colSpan={3} className="py-8 text-center text-gray-500 text-sm sm:text-base">
                   No cities found. Try a different search term.
                 </td>
               </tr>
