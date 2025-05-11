@@ -1,8 +1,210 @@
+"use client";
+
+import { useState, useEffect } from "react";
 import { fetchWeather, fetchForecast } from "@/utils/fetchWeather";
 import Image from "next/image";
-import { headers } from "next/headers";
+import { useParams } from "next/navigation";
 
-interface WeatherResponse {
+interface ForecastItem {
+  dt_txt: string;
+  main: {
+    temp: number;
+    humidity: number;
+    feels_like?: number;
+    pressure?: number;
+  };
+  weather: Array<{
+    main: string;
+    description: string;
+    icon: string;
+  }>;
+}
+
+interface GroupedForecast {
+  date: string;
+  items: ForecastItem[];
+}
+
+// Weather assets mapping
+const getWeatherAssets = (iconCode: string) => {
+  const assetsMap: Record<
+    string,
+    {
+      bg: string;
+      text: string;
+      card: string;
+      animation: string;
+      icon: string;
+      dayNight?: "day" | "night";
+    }
+  > = {
+    "01d": {
+      // Clear sky (day)
+      bg: "from-sky-100 to-blue-300",
+      text: "text-blue-900",
+      card: "bg-white/90",
+      animation: "/animations/sunny.gif",
+      icon: "☀️",
+      dayNight: "day",
+    },
+    "01n": {
+      // Clear sky (night)
+      bg: "from-indigo-900 to-gray-800",
+      text: "text-indigo-100",
+      card: "bg-indigo-900/90",
+      animation: "/animations/night.gif",
+      icon: "🌙",
+      dayNight: "night",
+    },
+    "02d": {
+      // Few clouds (day)
+      bg: "from-blue-100 to-blue-300",
+      text: "text-blue-800",
+      card: "bg-white/90",
+      animation: "/animations/partly-cloudy.gif",
+      icon: "⛅",
+      dayNight: "day",
+    },
+    "02n": {
+      // Few clouds (night)
+      bg: "from-indigo-800 to-gray-700",
+      text: "text-indigo-100",
+      card: "bg-indigo-800/90",
+      animation: "/animations/partly-cloudy-night.gif",
+      icon: "☁️",
+      dayNight: "night",
+    },
+    "03": {
+      // Scattered clouds
+      bg: "from-gray-200 to-gray-400",
+      text: "text-gray-700",
+      card: "bg-white/90",
+      animation: "/animations/cloudy.gif",
+      icon: "☁️",
+    },
+    "04": {
+      // Broken clouds
+      bg: "from-gray-300 to-gray-500",
+      text: "text-gray-800",
+      card: "bg-gray-100/90",
+      animation: "/animations/overcast.gif",
+      icon: "☁️",
+    },
+    "09": {
+      // Shower rain
+      bg: "from-blue-300 to-gray-400",
+      text: "text-blue-900",
+      card: "bg-blue-100/90",
+      animation: "/animations/rain.gif",
+      icon: "🌧️",
+    },
+    "10d": {
+      // Rain (day)
+      bg: "from-blue-400 to-gray-500",
+      text: "text-blue-900",
+      card: "bg-blue-200/90",
+      animation: "/animations/rain-day.gif",
+      icon: "🌦️",
+      dayNight: "day",
+    },
+    "10n": {
+      // Rain (night)
+      bg: "from-blue-900 to-gray-700",
+      text: "text-blue-100",
+      card: "bg-blue-900/90",
+      animation: "/animations/rain-night.gif",
+      icon: "🌧️",
+      dayNight: "night",
+    },
+    "11": {
+      // Thunderstorm
+      bg: "from-purple-600 to-gray-700",
+      text: "text-purple-100",
+      card: "bg-purple-800/90",
+      animation: "/animations/thunderstorm.gif",
+      icon: "⛈️",
+    },
+    "13": {
+      // Snow
+      bg: "from-blue-100 to-white",
+      text: "text-blue-900",
+      card: "bg-blue-50/90",
+      animation: "/animations/snow.gif",
+      icon: "❄️",
+    },
+    "50": {
+      // Mist
+      bg: "from-gray-100 to-gray-300",
+      text: "text-gray-700",
+      card: "bg-white/90",
+      animation: "/animations/fog.gif",
+      icon: "🌫️",
+    },
+    default: {
+      // Default
+      bg: "from-blue-100 to-blue-200",
+      text: "text-gray-800",
+      card: "bg-white/90",
+      animation: "/animations/partly-cloudy.gif",
+      icon: "🌈",
+    },
+  };
+
+  // Check for exact matches first
+  if (assetsMap[iconCode]) {
+    return assetsMap[iconCode];
+  }
+
+  // Check for general weather types (first two characters)
+  const generalCode = iconCode.substring(0, 2);
+  if (assetsMap[generalCode]) {
+    return assetsMap[generalCode];
+  }
+
+  return assetsMap.default;
+};
+
+// Format date string to more readable format
+const formatDate = (dateStr: string): string => {
+  const date = new Date(dateStr);
+  return date.toLocaleDateString("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+  });
+};
+
+// Format time string
+const formatTime = (dateStr: string): string => {
+  const date = new Date(dateStr);
+  return date.toLocaleTimeString("en-US", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+};
+
+// Group forecast by date
+const groupForecastByDate = (
+  forecastList: ForecastItem[]
+): GroupedForecast[] => {
+  const grouped: Record<string, ForecastItem[]> = {};
+
+  forecastList.forEach((item) => {
+    const date = item.dt_txt.split(" ")[0];
+    if (!grouped[date]) {
+      grouped[date] = [];
+    }
+    grouped[date].push(item);
+  });
+
+  return Object.entries(grouped).map(([date, items]) => ({
+    date,
+    items,
+  }));
+};
+
+// Types for weather data
+interface WeatherData {
   name: string;
   main: {
     temp: number;
@@ -28,202 +230,75 @@ interface WeatherResponse {
   };
 }
 
-interface ForecastItem {
-  dt_txt: string;
-  main: {
-    temp: number;
-    humidity: number;
-    feels_like?: number;
-    pressure?: number;
-  };
-  weather: Array<{
-    main: string;
-    description: string;
-    icon: string;
-  }>;
-}
-
-interface ForecastResponse {
+interface ForecastData {
   list: ForecastItem[];
 }
 
-interface GroupedForecast {
-  date: string;
-  items: ForecastItem[];
-}
+export default function WeatherPage() {
+  const params = useParams<{ city: string }>();
+  const cityName = params.city ? decodeURIComponent(params.city) : "";
+  
+  const [weather, setWeather] = useState<WeatherData | null>(null);
+  const [forecast, setForecast] = useState<ForecastData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
 
-interface WeatherAssets {
-  bg: string;
-  text: string;
-  card: string;
-  animation: string;
-  icon: string;
-  dayNight?: "day" | "night";
-}
+  useEffect(() => {
+    const loadWeatherData = async () => {
+      if (!cityName) return;
+      
+      try {
+        setLoading(true);
+        const weatherData = await fetchWeather(cityName);
+        const forecastData = await fetchForecast(cityName);
+        
+        setWeather(weatherData);
+        setForecast(forecastData);
+        setError(null);
+      } catch (err) {
+        console.error("Error fetching weather data:", err);
+        setError(err as Error);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-const getWeatherAssets = (iconCode: string): WeatherAssets => {
-  const assetsMap: Record<string, WeatherAssets> = {
-    "01d": {
-      bg: "from-sky-100 to-blue-300",
-      text: "text-blue-900",
-      card: "bg-white/90",
-      animation: "/animations/sunny.gif",
-      icon: "☀️",
-      dayNight: "day",
-    },
-    "01n": {
-      bg: "from-indigo-900 to-gray-800",
-      text: "text-indigo-100",
-      card: "bg-indigo-900/90",
-      animation: "/animations/night.gif",
-      icon: "🌙",
-      dayNight: "night",
-    },
-    "02d": {
-      bg: "from-blue-100 to-blue-300",
-      text: "text-blue-800",
-      card: "bg-white/90",
-      animation: "/animations/partly-cloudy.gif",
-      icon: "⛅",
-      dayNight: "day",
-    },
-    "02n": {
-      bg: "from-indigo-800 to-gray-700",
-      text: "text-indigo-100",
-      card: "bg-indigo-800/90",
-      animation: "/animations/partly-cloudy-night.gif",
-      icon: "☁️",
-      dayNight: "night",
-    },
-    "03": {
-      bg: "from-gray-200 to-gray-400",
-      text: "text-gray-700",
-      card: "bg-white/90",
-      animation: "/animations/cloudy.gif",
-      icon: "☁️",
-    },
-    "04": {
-      bg: "from-gray-300 to-gray-500",
-      text: "text-gray-800",
-      card: "bg-gray-100/90",
-      animation: "/animations/overcast.gif",
-      icon: "☁️",
-    },
-    "09": {
-      bg: "from-blue-300 to-gray-400",
-      text: "text-blue-900",
-      card: "bg-blue-100/90",
-      animation: "/animations/rain.gif",
-      icon: "🌧️",
-    },
-    "10d": {
-      bg: "from-blue-400 to-gray-500",
-      text: "text-blue-900",
-      card: "bg-blue-200/90",
-      animation: "/animations/rain-day.gif",
-      icon: "🌦️",
-      dayNight: "day",
-    },
-    "10n": {
-      bg: "from-blue-900 to-gray-700",
-      text: "text-blue-100",
-      card: "bg-blue-900/90",
-      animation: "/animations/rain-night.gif",
-      icon: "🌧️",
-      dayNight: "night",
-    },
-    "11": {
-      bg: "from-purple-600 to-gray-700",
-      text: "text-purple-100",
-      card: "bg-purple-800/90",
-      animation: "/animations/thunderstorm.gif",
-      icon: "⛈️",
-    },
-    "13": {
-      bg: "from-blue-100 to-white",
-      text: "text-blue-900",
-      card: "bg-blue-50/90",
-      animation: "/animations/snow.gif",
-      icon: "❄️",
-    },
-    "50": {
-      bg: "from-gray-100 to-gray-300",
-      text: "text-gray-700",
-      card: "bg-white/90",
-      animation: "/animations/fog.gif",
-      icon: "🌫️",
-    },
-    default: {
-      bg: "from-blue-100 to-blue-200",
-      text: "text-gray-800",
-      card: "bg-white/90",
-      animation: "/animations/partly-cloudy.gif",
-      icon: "🌈",
-    },
-  };
+    loadWeatherData();
+  }, [cityName]);
 
-  if (assetsMap[iconCode]) {
-    return assetsMap[iconCode];
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-xl font-semibold mb-2">Loading weather data...</h2>
+          <p>Fetching the latest weather information for {cityName}</p>
+        </div>
+      </div>
+    );
   }
 
-  const generalCode = iconCode.substring(0, 2);
-  if (assetsMap[generalCode]) {
-    return assetsMap[generalCode];
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center p-6 bg-white/90 rounded-xl shadow-lg">
+          <h1 className="text-2xl font-bold text-red-600 mb-2">
+            Error Loading Weather Data
+          </h1>
+          <p className="text-gray-700 mb-4">
+            Could not fetch weather for {cityName}
+          </p>
+          <p className="text-sm text-gray-500">{error.message}</p>
+        </div>
+      </div>
+    );
   }
 
-  return assetsMap.default;
-};
-
-const formatDate = (dateStr: string): string => {
-  const date = new Date(dateStr);
-  return date.toLocaleDateString("en-US", {
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-  });
-};
-
-const formatTime = (dateStr: string): string => {
-  const date = new Date(dateStr);
-  return date.toLocaleTimeString("en-US", {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-};
-
-const groupForecastByDate = (forecastList: ForecastItem[]): GroupedForecast[] => {
-  const grouped: Record<string, ForecastItem[]> = {};
-
-  forecastList.forEach((item) => {
-    const date = item.dt_txt.split(" ")[0];
-    if (!grouped[date]) {
-      grouped[date] = [];
-    }
-    grouped[date].push(item);
-  });
-
-  return Object.entries(grouped).map(([date, items]) => ({
-    date,
-    items,
-  }));
-};
-
-
-export default async function Page() {
-
-  const headersList = await headers();
-  const pathname = headersList.get("x-invoke-path") || "";
-  const cityName = decodeURIComponent(pathname.split("/").pop() || "");
-  if (!cityName) {
-    return <p className="text-center py-4 opacity-70">City not found</p>;
+  if (!weather || !forecast) {
+    return <div className="text-center p-4">Weather data not available</div>;
   }
-
-  const weather: WeatherResponse = await fetchWeather(cityName);
-  const forecast: ForecastResponse = await fetchForecast(cityName);
 
   const weatherIconCode = weather.weather[0]?.icon || "01d";
   const { bg, text, card, animation, icon } = getWeatherAssets(weatherIconCode);
-
   const groupedForecast = groupForecastByDate(forecast.list);
 
   return (
@@ -304,10 +379,12 @@ export default async function Page() {
                   <div className="flex items-center">
                     <span className="inline-block w-28">🌅 Sunrise:</span>
                     <span>
-                      {new Date(weather.sys.sunrise * 1000).toLocaleTimeString(
-                        [],
-                        { hour: "2-digit", minute: "2-digit" }
-                      )}
+                      {new Date(
+                        weather.sys.sunrise * 1000
+                      ).toLocaleTimeString([], {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
                     </span>
                   </div>
                 )}
