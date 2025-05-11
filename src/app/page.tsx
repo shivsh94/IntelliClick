@@ -1,4 +1,4 @@
-import { CityTable } from "@/components/CityTable";
+import CityTable from "@/components/CityTable";
 
 export default function Home() {
   return (
