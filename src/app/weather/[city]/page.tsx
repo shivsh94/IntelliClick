@@ -1,5 +1,6 @@
 import { fetchWeather, fetchForecast } from "@/utils/fetchWeather";
 import Image from "next/image";
+import { headers } from "next/headers";
 
 interface WeatherResponse {
   name: string;
@@ -60,166 +61,166 @@ interface WeatherAssets {
   dayNight?: "day" | "night";
 }
 
-export default async function WeatherPage({
-  params,
-}: {
-  params: { city: string };
-}) {
-  const cityName = decodeURIComponent(params.city);
+const getWeatherAssets = (iconCode: string): WeatherAssets => {
+  const assetsMap: Record<string, WeatherAssets> = {
+    "01d": {
+      bg: "from-sky-100 to-blue-300",
+      text: "text-blue-900",
+      card: "bg-white/90",
+      animation: "/animations/sunny.gif",
+      icon: "☀️",
+      dayNight: "day",
+    },
+    "01n": {
+      bg: "from-indigo-900 to-gray-800",
+      text: "text-indigo-100",
+      card: "bg-indigo-900/90",
+      animation: "/animations/night.gif",
+      icon: "🌙",
+      dayNight: "night",
+    },
+    "02d": {
+      bg: "from-blue-100 to-blue-300",
+      text: "text-blue-800",
+      card: "bg-white/90",
+      animation: "/animations/partly-cloudy.gif",
+      icon: "⛅",
+      dayNight: "day",
+    },
+    "02n": {
+      bg: "from-indigo-800 to-gray-700",
+      text: "text-indigo-100",
+      card: "bg-indigo-800/90",
+      animation: "/animations/partly-cloudy-night.gif",
+      icon: "☁️",
+      dayNight: "night",
+    },
+    "03": {
+      bg: "from-gray-200 to-gray-400",
+      text: "text-gray-700",
+      card: "bg-white/90",
+      animation: "/animations/cloudy.gif",
+      icon: "☁️",
+    },
+    "04": {
+      bg: "from-gray-300 to-gray-500",
+      text: "text-gray-800",
+      card: "bg-gray-100/90",
+      animation: "/animations/overcast.gif",
+      icon: "☁️",
+    },
+    "09": {
+      bg: "from-blue-300 to-gray-400",
+      text: "text-blue-900",
+      card: "bg-blue-100/90",
+      animation: "/animations/rain.gif",
+      icon: "🌧️",
+    },
+    "10d": {
+      bg: "from-blue-400 to-gray-500",
+      text: "text-blue-900",
+      card: "bg-blue-200/90",
+      animation: "/animations/rain-day.gif",
+      icon: "🌦️",
+      dayNight: "day",
+    },
+    "10n": {
+      bg: "from-blue-900 to-gray-700",
+      text: "text-blue-100",
+      card: "bg-blue-900/90",
+      animation: "/animations/rain-night.gif",
+      icon: "🌧️",
+      dayNight: "night",
+    },
+    "11": {
+      bg: "from-purple-600 to-gray-700",
+      text: "text-purple-100",
+      card: "bg-purple-800/90",
+      animation: "/animations/thunderstorm.gif",
+      icon: "⛈️",
+    },
+    "13": {
+      bg: "from-blue-100 to-white",
+      text: "text-blue-900",
+      card: "bg-blue-50/90",
+      animation: "/animations/snow.gif",
+      icon: "❄️",
+    },
+    "50": {
+      bg: "from-gray-100 to-gray-300",
+      text: "text-gray-700",
+      card: "bg-white/90",
+      animation: "/animations/fog.gif",
+      icon: "🌫️",
+    },
+    default: {
+      bg: "from-blue-100 to-blue-200",
+      text: "text-gray-800",
+      card: "bg-white/90",
+      animation: "/animations/partly-cloudy.gif",
+      icon: "🌈",
+    },
+  };
+
+  if (assetsMap[iconCode]) {
+    return assetsMap[iconCode];
+  }
+
+  const generalCode = iconCode.substring(0, 2);
+  if (assetsMap[generalCode]) {
+    return assetsMap[generalCode];
+  }
+
+  return assetsMap.default;
+};
+
+const formatDate = (dateStr: string): string => {
+  const date = new Date(dateStr);
+  return date.toLocaleDateString("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+  });
+};
+
+const formatTime = (dateStr: string): string => {
+  const date = new Date(dateStr);
+  return date.toLocaleTimeString("en-US", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+};
+
+const groupForecastByDate = (forecastList: ForecastItem[]): GroupedForecast[] => {
+  const grouped: Record<string, ForecastItem[]> = {};
+
+  forecastList.forEach((item) => {
+    const date = item.dt_txt.split(" ")[0];
+    if (!grouped[date]) {
+      grouped[date] = [];
+    }
+    grouped[date].push(item);
+  });
+
+  return Object.entries(grouped).map(([date, items]) => ({
+    date,
+    items,
+  }));
+};
+
+
+export default async function Page() {
+
+  const headersList = await headers();
+  const pathname = headersList.get("x-invoke-path") || "";
+  const cityName = decodeURIComponent(pathname.split("/").pop() || "london");
+
   const weather: WeatherResponse = await fetchWeather(cityName);
   const forecast: ForecastResponse = await fetchForecast(cityName);
 
-  const getWeatherAssets = (iconCode: string): WeatherAssets => {
-    const assetsMap: Record<string, WeatherAssets> = {
-      "01d": {
-        bg: "from-sky-100 to-blue-300",
-        text: "text-blue-900",
-        card: "bg-white/90",
-        animation: "/animations/sunny.gif",
-        icon: "☀️",
-        dayNight: "day",
-      },
-      "01n": {
-        bg: "from-indigo-900 to-gray-800",
-        text: "text-indigo-100",
-        card: "bg-indigo-900/90",
-        animation: "/animations/night.gif",
-        icon: "🌙",
-        dayNight: "night",
-      },
-      "02d": {
-        bg: "from-blue-100 to-blue-300",
-        text: "text-blue-800",
-        card: "bg-white/90",
-        animation: "/animations/partly-cloudy.gif",
-        icon: "⛅",
-        dayNight: "day",
-      },
-      "02n": {
-        bg: "from-indigo-800 to-gray-700",
-        text: "text-indigo-100",
-        card: "bg-indigo-800/90",
-        animation: "/animations/partly-cloudy-night.gif",
-        icon: "☁️",
-        dayNight: "night",
-      },
-      "03": {
-        bg: "from-gray-200 to-gray-400",
-        text: "text-gray-700",
-        card: "bg-white/90",
-        animation: "/animations/cloudy.gif",
-        icon: "☁️",
-      },
-      "04": {
-        bg: "from-gray-300 to-gray-500",
-        text: "text-gray-800",
-        card: "bg-gray-100/90",
-        animation: "/animations/overcast.gif",
-        icon: "☁️",
-      },
-      "09": {
-        bg: "from-blue-300 to-gray-400",
-        text: "text-blue-900",
-        card: "bg-blue-100/90",
-        animation: "/animations/rain.gif",
-        icon: "🌧️",
-      },
-      "10d": {
-        bg: "from-blue-400 to-gray-500",
-        text: "text-blue-900",
-        card: "bg-blue-200/90",
-        animation: "/animations/rain-day.gif",
-        icon: "🌦️",
-        dayNight: "day",
-      },
-      "10n": {
-        bg: "from-blue-900 to-gray-700",
-        text: "text-blue-100",
-        card: "bg-blue-900/90",
-        animation: "/animations/rain-night.gif",
-        icon: "🌧️",
-        dayNight: "night",
-      },
-      "11": {
-        bg: "from-purple-600 to-gray-700",
-        text: "text-purple-100",
-        card: "bg-purple-800/90",
-        animation: "/animations/thunderstorm.gif",
-        icon: "⛈️",
-      },
-      "13": {
-        bg: "from-blue-100 to-white",
-        text: "text-blue-900",
-        card: "bg-blue-50/90",
-        animation: "/animations/snow.gif",
-        icon: "❄️",
-      },
-      "50": {
-        bg: "from-gray-100 to-gray-300",
-        text: "text-gray-700",
-        card: "bg-white/90",
-        animation: "/animations/fog.gif",
-        icon: "🌫️",
-      },
-      default: {
-        bg: "from-blue-100 to-blue-200",
-        text: "text-gray-800",
-        card: "bg-white/90",
-        animation: "/animations/partly-cloudy.gif",
-        icon: "🌈",
-      },
-    };
-
-    if (assetsMap[iconCode]) {
-      return assetsMap[iconCode];
-    }
-
-    const generalCode = iconCode.substring(0, 2);
-    if (assetsMap[generalCode]) {
-      return assetsMap[generalCode];
-    }
-
-    return assetsMap.default;
-  };
-
-  const formatDate = (dateStr: string): string => {
-    const date = new Date(dateStr);
-    return date.toLocaleDateString("en-US", {
-      weekday: "short",
-      month: "short",
-      day: "numeric",
-    });
-  };
-
-  const formatTime = (dateStr: string): string => {
-    const date = new Date(dateStr);
-    return date.toLocaleTimeString("en-US", {
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  };
-
-  const groupForecastByDate = (
-    forecastList: ForecastItem[]
-  ): GroupedForecast[] => {
-    const grouped: Record<string, ForecastItem[]> = {};
-
-    forecastList.forEach((item) => {
-      const date = item.dt_txt.split(" ")[0];
-      if (!grouped[date]) {
-        grouped[date] = [];
-      }
-      grouped[date].push(item);
-    });
-
-    return Object.entries(grouped).map(([date, items]) => ({
-      date,
-      items,
-    }));
-  };
-
   const weatherIconCode = weather.weather[0]?.icon || "01d";
   const { bg, text, card, animation, icon } = getWeatherAssets(weatherIconCode);
+
   const groupedForecast = groupForecastByDate(forecast.list);
 
   return (
